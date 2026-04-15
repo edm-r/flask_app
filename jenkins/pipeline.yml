@@ -1,7 +1,8 @@
 pipeline {
-    agent any
-    
+    agent any // Définit l'environnement de travail pour tout le pipeline
+
     environment {
+        // Vérifie bien que l'ID dans Jenkins est identique à celui-ci
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
         DOCKER_IMAGE = 'edmr/flask-app:latest'
         GITHUB_REPO = 'https://github.com/edm-r/flask_app.git'
@@ -10,7 +11,7 @@ pipeline {
     stages {
         stage('Clonage') {
             steps {
-                echo 'Clonage du dépôt GitHub...'
+                echo 'Récupération du code source...'
                 git branch: 'main', url: "${GITHUB_REPO}"
             }
         }
@@ -24,15 +25,17 @@ pipeline {
         
         stage('Publication') {
             steps {
-                echo 'Publication de l\'image sur DockerHub...'
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                sh 'docker push $DOCKER_IMAGE'
+                echo 'Connexion et envoi vers DockerHub...'
+                // Utilise les variables d'environnement générées par 'credentials'
+                sh "echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin"
+                sh "docker push $DOCKER_IMAGE"
             }
         }
     }
     
     post {
         always {
+            echo 'Nettoyage de la session Docker...'
             sh 'docker logout'
         }
     }
