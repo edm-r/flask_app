@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - ./volumes/mongodb:/data/db
+
+  pritunl:
+    image: jippi/pritunl:latest
+    container_name: pritunl
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    privileged: true # Nécessaire pour les opérations réseau du VPN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    ports:
+      - "${PRITUNL_PORT_HTTP}:80/tcp"
+      - "${PRITUNL_PORT_HTTPS}:443/tcp"
+      - "${PRITUNL_PORT_VPN}:1194/udp"
+    volumes:
+      - ./volumes/pritunl:/var/lib/pritunl
+    environment:
+      - PRITUNL_MONGODB_URI=mongodb://mongodb:27017/pritunl
