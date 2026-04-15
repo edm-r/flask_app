@@ -1,8 +1,8 @@
 pipeline {
-    agent any // Définit l'environnement de travail pour tout le pipeline
+    agent any 
 
     environment {
-        // Vérifie bien que l'ID dans Jenkins est identique à celui-ci
+        // L'ID que tu as confirmé dans Jenkins
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
         DOCKER_IMAGE = 'edmr/flask-app:latest'
         GITHUB_REPO = 'https://github.com/edm-r/flask_app.git'
@@ -11,32 +11,42 @@ pipeline {
     stages {
         stage('Clonage') {
             steps {
-                echo 'Récupération du code source...'
-                git branch: 'main', url: "${GITHUB_REPO}"
+                script {
+                    echo '--- Étape 1 : Récupération du code ---'
+                    git branch: 'main', url: "${GITHUB_REPO}"
+                }
             }
         }
         
         stage('Image') {
             steps {
-                echo 'Construction de l\'image Docker...'
-                sh 'docker build -t $DOCKER_IMAGE .'
+                script {
+                    echo '--- Étape 2 : Construction de l\'image ---'
+                    // On utilise le port 5001 comme convenu pour éviter les conflits
+                    sh 'docker build -t $DOCKER_IMAGE .'
+                }
             }
         }
         
         stage('Publication') {
             steps {
-                echo 'Connexion et envoi vers DockerHub...'
-                // Utilise les variables d'environnement générées par 'credentials'
-                sh "echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin"
-                sh "docker push $DOCKER_IMAGE"
+                script {
+                    echo '--- Étape 3 : Push vers DockerHub ---'
+                    // Utilisation des variables générées par Jenkins pour le login
+                    sh "echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin"
+                    sh "docker push $DOCKER_IMAGE"
+                }
             }
         }
     }
     
     post {
         always {
-            echo 'Nettoyage de la session Docker...'
-            sh 'docker logout'
+            // Le bloc script ici assure que le contexte FilePath est maintenu sur ton Mac
+            script {
+                echo '--- Nettoyage ---'
+                sh 'docker logout'
+            }
         }
     }
 }
