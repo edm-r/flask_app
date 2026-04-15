@@ -1,51 +1,42 @@
 pipeline {
-    agent any 
+    agent any // Définit l'environnement de travail pour tout le pipeline
 
     environment {
+        // Vérifie bien que l'ID dans Jenkins est identique à celui-ci
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
         DOCKER_IMAGE = 'edmr/flask-app:latest'
         GITHUB_REPO = 'https://github.com/edm-r/flask_app.git'
     }
 
     stages {
-
         stage('Clonage') {
             steps {
-                echo '--- Étape 1 : Récupération du code ---'
+                echo 'Récupération du code source...'
                 git branch: 'main', url: "${GITHUB_REPO}"
             }
         }
         
-        stage('Build Image') {
+        stage('Image') {
             steps {
-                echo '--- Étape 2 : Construction de l\'image Docker ---'
+                echo 'Construction de l\'image Docker...'
                 sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
         
-        stage('Push DockerHub') {
+        stage('Publication') {
             steps {
-                echo '--- Étape 3 : Push vers DockerHub ---'
-                
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials-id', 
-                    usernameVariable: 'DOCKER_USER', 
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push $DOCKER_IMAGE
-                    '''
-                }
+                echo 'Connexion et envoi vers DockerHub...'
+                // Utilise les variables d'environnement générées par 'credentials'
+                sh "echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin"
+                sh "docker push $DOCKER_IMAGE"
             }
         }
     }
-
+    
     post {
         always {
-            node {
-                echo '--- Nettoyage ---'
-                sh 'docker logout || true'
-            }
+            echo 'Nettoyage de la session Docker...'
+            sh 'docker logout'
         }
     }
 }
